@@ -65,7 +65,6 @@ class BufferedTableWriter(object):
             assert key_ is not None
             with self.insert_lock:
                 # Check the rest of the queue as well
-                # TODO - to support threading, we should use a lock
                 del_idx = None
                 for idx, e in enumerate(self.queue):
                     if e[self.key_column] == key_:
