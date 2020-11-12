@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from sqlalchemy import event
 import sqlite3
 import os
+from dataset.database import Database
 
 
 class ConnectMode(Enum):
@@ -101,9 +102,10 @@ def get_or_create_from_dict(path_or_db, table_info: dict, mode=ConnectMode.JOURN
         return type_
 
     for table_name in table_info.keys():
+        ct = table_info[table_name]
         if table_name not in db:
+            # create column if it doesn't exist
             # Create table_name
-            ct = table_info[table_name]
             assert 'primary' in ct
             assert 'columns' in ct
             if 'primary' in ct:
@@ -111,14 +113,45 @@ def get_or_create_from_dict(path_or_db, table_info: dict, mode=ConnectMode.JOURN
                 table = db.create_table(table_name, primary_id=primary_id, primary_type=get_type(primary_key))
             else:
                 table = db.create_table(table_name)
-            assert isinstance(ct['columns'], list)
-            for col in ct['columns']:
-                col_name, col_type = col
+        else:
+            table = db[table_name]
+        assert isinstance(table, dataset.Table)
+        assert isinstance(ct['columns'], list)
+        for col in ct['columns']:
+            col_name, col_type = col
+            if not table.has_column(col_name):
                 table.create_column(col_name, get_type(col_type))
-            if 'index' in ct:
-                for cc in ct['index']:
-                    if not isinstance(cc, list):
-                        table.create_index([cc])
-                    else:
-                        table.create_index(cc)
+        if 'index' in ct:
+            for cc in ct['index']:
+                idxcols = cc
+                if not isinstance(cc, list):
+                    idxcols = [cc]
+                if not table.has_index(idxcols):
+                    table.create_index(idxcols)
     return db
+
+
+class RamCache():
+    # TODO - in the middle of implementing
+
+    @classmethod
+    def from_path(cls, path):
+        pass
+
+    # For now, read-only
+    def __init__(self, path, cache_dir='/dev/shm/'):
+        assert os.path.isdir(cache_dir)
+        assert os.path.exists(path)
+        import shutil
+        shutil.copy(path, cache_dir)
+        from pathlib import Path
+        self.cached_path = os.path.join(cache_dir, Path(path).name)
+        assert os.path.isfile(self.cached_path)
+        self.db = connect_ro(self.cached_path)
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+        import shutil
+        os.remove(self.cached_path)
+
