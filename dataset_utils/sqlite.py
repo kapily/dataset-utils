@@ -106,8 +106,8 @@ def get_or_create_from_dict(path_or_db, table_info: dict, mode=ConnectMode.JOURN
         if table_name not in db:
             # create column if it doesn't exist
             # Create table_name
-            assert 'primary' in ct
-            assert 'columns' in ct
+            #assert 'primary' in ct
+            #assert 'columns' in ct
             if 'primary' in ct:
                 primary_id, primary_key = ct['primary']
                 table = db.create_table(table_name, primary_id=primary_id, primary_type=get_type(primary_key))
