@@ -31,10 +31,10 @@ class SqliteCounters(object):
         self.table_cache = {}
 
     def increment(self, counter, value=1):
-        if counter in self.table_cache:
-            table = self.table_cache[counter]
-        else:
-            table = get_or_create_counters(self.db, counter)
+        if counter not in self.table_cache:
+            _, table = get_or_create_counters(self.db, counter)
+            self.table_cache[counter] = table
+        table = self.table_cache[counter]
         table.insert({'ts': time.time(), 'value': value})
 
     def window_sum(self, counter, lookback):
