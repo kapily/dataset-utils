@@ -64,6 +64,10 @@ class BufferedTableWriter(object):
             assert self.key_column is not None
             assert key_ is not None
             with self.insert_lock:
+                exists = self._row_exists(key_)
+                if exists:
+                    # delete existing key since we are going to overwrite
+                    self.table.delete(**{self.key_column: key_})
                 # Check the rest of the queue as well
                 del_idx = None
                 for idx, e in enumerate(self.queue):
