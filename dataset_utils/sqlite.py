@@ -70,11 +70,15 @@ def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=N
         types = dict()
     if columns is not None:
         assert isinstance(columns, list) or isinstance(columns, tuple)
+
     def get_type(column, default='text'):
         type_ = types.get(column)
         if type_ is None:
             type_ = default
-        return getattr(dataset.types.Types, type_)
+        if isinstance(type_, str):
+            return getattr(dataset.types.Types, type_)
+        assert not isinstance(type_, str)
+        return type_
 
     if primary_id:
         generated_dict['primary'] = (primary_id, get_type(primary_id))
