@@ -6,6 +6,7 @@ from sqlalchemy import event
 import sqlite3
 import os
 from dataset.database import Database
+from typing import Tuple
 
 
 class ConnectMode(Enum):
@@ -32,37 +33,28 @@ def connect(path, mode=ConnectMode.JOURNAL, ensure_exists=False):
 
 
 def connect_journal(path):
-    return dataset.connect('sqlite:///' + path)
+    return dataset.connect('sqlite:///' + path, sqlite_wal_mode=False)
 
 
 def connect_ro(path):
     # https://github.com/pudo/dataset/issues/136
     # https://stackoverflow.com/questions/27910829/sqlalchemy-and-sqlite-shared-cache
+    # https://stackoverflow.com/questions/48218065/programmingerror-sqlite-objects-created-in-a-thread-can-only-be-used-in-that-sa
+    # See "URI Connections":
+    # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html
     assert os.path.exists(path)
-    creator = lambda: sqlite3.connect('file:' + path + '?mode=ro', uri=True)
-    return dataset.connect('sqlite:///', engine_kwargs={'creator': creator})
+    creator = lambda: sqlite3.connect('file:' + path + '?mode=ro&check_same_thread=false', uri=True)
+    return dataset.connect('sqlite:///', engine_kwargs={'creator': creator}, sqlite_wal_mode=False)
 
 
 def connect_wal(path) -> dataset.Database:
     assert not path.startswith('sqlite:')
     url = 'sqlite:///' + path
-    parsed_url = urlparse(url)
-
-    db = dataset.connect(url)
-
-    def _enable_sqlite_wal_mode(dbapi_con, con_record):
-        # reference:
-        # https://stackoverflow.com/questions/9671490/how-to-set-sqlite-pragma-statements-with-sqlalchemy
-        # https://stackoverflow.com/a/7831210/1890086
-        dbapi_con.execute("PRAGMA journal_mode=WAL")
-
-    assert parsed_url.scheme.lower() == 'sqlite' and parsed_url.path != ''
-    # we only enable WAL mode for sqlite databases that are not in-memory
-    event.listen(db.engine, 'connect', _enable_sqlite_wal_mode)
+    db = dataset.connect(url, sqlite_wal_mode=True)
     return db
 
 
-def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=None, columns=None, types=None, index=None):
+def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=None, columns=None, types=None, index=None) -> Tuple[dataset.Database, dataset.Table]:
     # by default, types are all string (text or string - they're the same in sqlite)
     # more readable than calling get_or_create_from_dict
     generated_dict = {}
@@ -90,7 +82,8 @@ def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=N
         generated_dict['index'] = index
 
     db = get_or_create_from_dict(path_or_db, {table_name: generated_dict}, mode=mode)
-    return db, db[table_name]
+    table = db.load_table(table_name)
+    return db, table
 
 
 def get_or_create_from_dict(path_or_db, table_info: dict, mode=ConnectMode.JOURNAL) -> dataset.Database:
@@ -132,6 +125,12 @@ def get_or_create_from_dict(path_or_db, table_info: dict, mode=ConnectMode.JOURN
                     idxcols = [cc]
                 if not table.has_index(idxcols):
                     table.create_index(idxcols)
+        # NOTE: we have to do this to ensure the table is created by the time we return,
+        #       esp for WAL mode
+        #tmp_table = db.load_table(table_name)
+        # even this line below
+        #assert len(tmp_table.columns) >= 0
+        # assert table_name in db
     return db
 
 

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dataset-utils",
-    version="0.0.10",
+    version="0.0.32",
     author="Kapil Yedidi",
     author_email="kapily.code@gmail.com",
     description="A few helper utilities to the dataset pip package",
@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/kapily/dataset-utils",
     packages=setuptools.find_packages(),
     install_requires=[
-        'dataset>=1.3.2,<2',
+        'dataset>=1.4.4,<2',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

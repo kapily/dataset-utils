@@ -39,13 +39,17 @@ class BufferedTableWriter(object):
         self.insert_lock = RLock()
 
     def _row_exists(self, key_):
+        assert self.key_column is not None
         id_dict = {
             self.key_column: key_,
         }
         return self.table.find_one(**id_dict) is not None
 
     def insert(self, row: dict, key_=None):
+        # NOTE: key_ is deprecated and unnecessary. we only kept it for backwards compat
         should_insert = True
+        if self.key_column is not None and key_ is None:
+            key_ = row[self.key_column]
         if self.key_conflicts == ConflictChecker.DONT_CHECK:
             # don't do any checks
             pass
@@ -68,6 +72,7 @@ class BufferedTableWriter(object):
                 if exists:
                     # delete existing key since we are going to overwrite
                     self.table.delete(**{self.key_column: key_})
+                    assert not self._row_exists(key_)
                 # Check the rest of the queue as well
                 del_idx = None
                 for idx, e in enumerate(self.queue):
