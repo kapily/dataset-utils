@@ -5,8 +5,9 @@ Oops...TODO - copy in the features from dict_cache
 """
 import json
 
+from typing import Any, Dict, Tuple, Set, Union, List
 from .sqlite import get_or_create, ConnectMode
-
+from .buffered_writer import BufferedTableWriter, ConflictChecker
 
 class KVLite(object):
 
@@ -82,16 +83,14 @@ class KVLite(object):
             self.value_name: self.serialize_type(self.value_type, value)
         }, [self.key_name])
 
-    """
-    def set_multiple(self, d: Dict[str, Dict[str, str]]):
-        b = BufferedTableWriter(self.table, key_column=self.key_column, key_conflicts=ConflictChecker.OVERWRITE)
+    def set_multiple(self, d: Dict[str, Dict[str, Any]]):
+        b = BufferedTableWriter(self.table, key_column=self.key_name, key_conflicts=ConflictChecker.OVERWRITE)
         for k, v in d.items():
             assert isinstance(k, str)
-            assert isinstance(v, str)
-            b.insert({self.key_column: k, self.value_column: v})
+            b.insert({self.key_name: k, self.value_name: self.serialize_type(self.value_type, v)})
         b.force_flush()
 
-    def get_multiple(self, keys: Union[List[str], str]) -> Tuple[Dict[str, str], Set[str]]:
+    def get_multiple(self, keys: Union[List[str], str]) -> Tuple[Dict[str, Any], Set[str]]:
         if isinstance(keys, str):
             keys = [keys]
         assert isinstance(keys, list)
@@ -99,11 +98,9 @@ class KVLite(object):
         assert len(keys) == len(keys_set), 'Error: there are duplicate keys in your request'
         results = {}
         for e in self.table.find(key=keys):
-            k, v = e[self.key_column], e[self.value_column]
+            k, v = e[self.key_name], e[self.value_name]
             assert isinstance(k, str)
-            assert isinstance(v, str)
-            results[k] = v
+            results[k] = self.deserialize_type(self.value_type, v)
         remaining = keys_set - set(results.keys())
         assert len(results) + len(remaining) == len(keys)
         return results, remaining
-    """

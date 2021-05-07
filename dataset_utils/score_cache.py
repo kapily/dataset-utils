@@ -61,6 +61,23 @@ class ScoreCache(object):
         b.force_flush()
         self.create_indicies()
 
+    def labels(self):
+        result = []
+        for col in self.table.columns:
+            if col in ('parent_folder', 'path'):
+                continue
+            result.append(col)
+        return result
+
+    def count(self, label, threshold):
+        params = {
+            'label': label,
+            'threshold': {
+                '>=': threshold
+            }
+        }
+        return self.table.count(**params)
+
     def top_predictions(self, target_class: str, any_path_prefix=None, none_path_prefix=None, folders=None, not_folders=None, order_by='default', order='desc', page=0, limit=10000) -> List[Dict[str, Any]]:
         if order_by in ('default', None):
             order_by = target_class
@@ -164,7 +181,7 @@ class ScoreCache(object):
         keys_set = set(paths)
         assert len(relpaths) == len(keys_set), 'Error: there are duplicate keys in your request'
         results = {}
-        score_table = Table('scores')
+        score_table = Table(self.table_name)
 
         for relpaths_chunk in chunks(relpaths, 10000):
             # we chunk the reads b/c there's a limit for how big a query can be

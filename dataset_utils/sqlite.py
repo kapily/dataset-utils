@@ -61,7 +61,12 @@ def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=N
     if types is None:
         types = dict()
     if columns is not None:
-        assert isinstance(columns, list) or isinstance(columns, tuple)
+        assert isinstance(columns, list) or isinstance(columns, tuple) or isinstance(columns, dict)
+
+    if isinstance(columns, dict):
+        assert types is None
+        types = columns
+        columns = list(columns.keys())
 
     def get_type(column, default='text'):
         type_ = types.get(column)
