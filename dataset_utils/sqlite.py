@@ -58,8 +58,6 @@ def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=N
     # by default, types are all string (text or string - they're the same in sqlite)
     # more readable than calling get_or_create_from_dict
     generated_dict = {}
-    if types is None:
-        types = dict()
     if columns is not None:
         assert isinstance(columns, list) or isinstance(columns, tuple) or isinstance(columns, dict)
 
@@ -67,6 +65,13 @@ def get_or_create(path_or_db, table_name, mode=ConnectMode.JOURNAL, primary_id=N
         assert types is None
         types = columns
         columns = list(columns.keys())
+        try:
+            if primary_id:
+                columns.remove(primary_id)
+        except ValueError:
+            pass
+    if types is None:
+        types = dict()
 
     def get_type(column, default='text'):
         type_ = types.get(column)

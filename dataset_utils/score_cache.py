@@ -78,7 +78,11 @@ class ScoreCache(object):
         }
         return self.table.count(**params)
 
-    def top_predictions(self, target_class: str, any_path_prefix=None, none_path_prefix=None, folders=None, not_folders=None, order_by='default', order='desc', page=0, limit=10000) -> List[Dict[str, Any]]:
+    def top_predictions(
+            self, target_class: str, any_path_prefix=None, none_path_prefix=None, folders=None, not_folders=None,
+            order_by='default', order='desc', page=0, limit=10000,
+            score_filter=None
+    ) -> List[Dict[str, Any]]:
         if order_by in ('default', None):
             order_by = target_class
         if isinstance(folders, str):
@@ -100,6 +104,18 @@ class ScoreCache(object):
         else:
             assert not_folders
             q = q.where(ctable.parent_folder.notin(not_folders))
+
+        if score_filter is not None:
+            isinstance(score_filter, list)
+            for e in score_filter:
+                assert len(e) == 3
+                col, op, val = e
+                if op == '>=':
+                    q = q.where(getattr(ctable, col).gte(val))
+                elif op == '<=':
+                    q = q.where(getattr(ctable, col).lte(val))
+                else:
+                    raise Exception(f'Unknown operator: {op}')
 
         if any_path_prefix:
             if isinstance(any_path_prefix, str):

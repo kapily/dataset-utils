@@ -6,6 +6,9 @@ Oops...TODO - copy in the features from dict_cache
 import json
 
 from typing import Any, Dict, Tuple, Set, Union, List
+
+import dataset
+
 from .sqlite import get_or_create, ConnectMode
 from .buffered_writer import BufferedTableWriter, ConflictChecker
 
@@ -22,10 +25,16 @@ class KVLite(object):
         self.value_type = value_type
         self.key_name = key_name
         self.value_name = value_name
-        self.db, self.table = get_or_create(
-            path, table_name, mode=connect_mode, primary_id=self.key_name, columns=[self.value_name],
-            types={self.key_name: self.resolve_type(self.key_type), self.value_name: self.resolve_type(self.value_type)}
-        )
+        if isinstance(path, dataset.Database):
+            self.table = path[table_name]
+        elif isinstance(path, dataset.Table):
+            self.table = path
+        else:
+            assert isinstance(path, str)
+            db, self.table = get_or_create(
+                path, table_name, mode=connect_mode, primary_id=self.key_name, columns=[self.value_name],
+                types={self.key_name: self.resolve_type(self.key_type), self.value_name: self.resolve_type(self.value_type)}
+            )
 
     @classmethod
     def is_type(cls, elem_type, elem):
